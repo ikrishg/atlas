@@ -1,6 +1,8 @@
 import type { GraphEdge, GraphNode, GraphPath, GraphStore, Hop } from "./types.js";
 
 export class MemoryGraphStore implements GraphStore {
+  async close(): Promise<void> {}
+
   private byId = new Map<string, GraphNode>();
   private edges: GraphEdge[] = [];
 

@@ -32,4 +32,5 @@ export interface GraphStore {
   nodes(): Promise<GraphNode[]>;
   shortestPath(fromId: string, toId: string, maxHops?: number): Promise<GraphPath | null>;
   neighbors(id: string): Promise<Hop[]>;
+  close(): Promise<void>;
 }

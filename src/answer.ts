@@ -6,26 +6,34 @@ export interface Answer {
   path: GraphPath | null;
 }
 
+const normalize = (text: string) =>
+  text.toLowerCase().replace(/['\u2019]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
 /** Find the graph entities a question mentions, longest match first, in question order. */
 export function resolveEntities(question: string, nodes: GraphNode[]): GraphNode[] {
-  const q = ` ${question.toLowerCase().replace(/[^a-z0-9.\- ]+/g, " ")} `;
+  const q = ` ${normalize(question)} `;
   const found: { node: GraphNode; at: number; len: number }[] = [];
   for (const node of nodes) {
     for (const term of [node.name, ...(node.aliases ?? [])]) {
-      const t = term.toLowerCase();
-      const at = q.indexOf(` ${t} `);
-      if (at >= 0) found.push({ node, at, len: t.length });
+      const t = normalize(term);
+      if (!t) continue;
+      for (let at = q.indexOf(` ${t} `); at >= 0; at = q.indexOf(` ${t} `, at + 1)) {
+        found.push({ node, at, len: t.length + 2 });
+      }
     }
   }
-  found.sort((a, b) => b.len - a.len);
+  found.sort((a, b) => b.len - a.len || a.at - b.at);
   const taken: { at: number; end: number }[] = [];
   const picked: { node: GraphNode; at: number }[] = [];
   for (const f of found) {
-    const end = f.at + f.len;
-    if (taken.some((t) => f.at < t.end && end > t.at)) continue;
-    if (picked.some((p) => p.node.id === f.node.id)) continue;
-    taken.push({ at: f.at, end });
-    picked.push({ node: f.node, at: f.at });
+    // matches include their surrounding spaces, so neighbours share one space
+    const at = f.at + 1;
+    const end = f.at + f.len - 1;
+    if (taken.some((t) => at < t.end && end > t.at)) continue;
+    taken.push({ at, end });
+    const already = picked.find((p) => p.node.id === f.node.id);
+    if (already) already.at = Math.min(already.at, at);
+    else picked.push({ node: f.node, at });
   }
   return picked.sort((a, b) => a.at - b.at).map((p) => p.node);
 }

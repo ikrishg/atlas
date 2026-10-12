@@ -13,8 +13,8 @@ export class FalkorGraphStore implements GraphStore {
     const graph = db.selectGraph(graphName);
     try {
       await graph.query("CREATE INDEX FOR (n:Entity) ON (n.id)");
-    } catch {
-      // index already exists
+    } catch (err) {
+      if (!/already (exists|indexed)/i.test(String(err))) throw err;
     }
     return new FalkorGraphStore(graph, db);
   }
@@ -31,10 +31,13 @@ export class FalkorGraphStore implements GraphStore {
       );
     }
     for (const e of edges) {
-      await this.graph.query(
-        `MATCH (a:Entity {id: $from}), (b:Entity {id: $to}) MERGE (a)-[:${relType(e.rel)}]->(b)`,
+      const res = await this.graph.query<{ ok: number }>(
+        `MATCH (a:Entity {id: $from}), (b:Entity {id: $to}) MERGE (a)-[:${relType(e.rel)}]->(b) RETURN 1 AS ok`,
         { params: { from: e.from, to: e.to } },
       );
+      if (!res.data?.length) {
+        throw new Error(`Edge ${e.from} -[${e.rel}]-> ${e.to} references a missing node`);
+      }
     }
   }
 
@@ -56,9 +59,15 @@ export class FalkorGraphStore implements GraphStore {
   }
 
   async shortestPath(fromId: string, toId: string, maxHops = 6): Promise<GraphPath | null> {
+    const limit = Math.floor(maxHops);
+    if (fromId === toId || limit < 1) {
+      if (fromId !== toId) return null;
+      const self = (await this.nodes()).find((n) => n.id === fromId);
+      return self ? { nodes: [self], hops: [] } : null;
+    }
     const res = await this.graph.query<{ ids: string[] }>(
       `MATCH (a:Entity {id: $from}), (b:Entity {id: $to})
-       MATCH p = shortestPath((a)-[*..${Math.max(1, Math.floor(maxHops))}]-(b))
+       MATCH p = shortestPath((a)-[*..${limit}]-(b))
        RETURN [n IN nodes(p) | n.id] AS ids`,
       { params: { from: fromId, to: toId } },
     );

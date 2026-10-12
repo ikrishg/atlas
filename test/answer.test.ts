@@ -14,6 +14,19 @@ describe("resolveEntities", () => {
     const found = resolveEntities("Does Grok Bot reach the graph hacks repo atlas?", nodes);
     expect(found.map((n) => n.id)).toEqual(["bot:grok", "bet:graph-hacks", "repo:atlas"]);
   });
+  it("ignores sentence punctuation and apostrophes", () => {
+    expect(resolveEntities("How is Forge connected to Krish.", nodes).map((n) => n.id)).toEqual([
+      "bot:forge",
+      "person:krish",
+    ]);
+    expect(resolveEntities("is Forge's repo kronos?", nodes).map((n) => n.id)).toEqual(["repo:kronos"]);
+  });
+  it("finds a later standalone name after a longer overlapping one", () => {
+    expect(resolveEntities("How is Krish approval connected to Krish?", nodes).map((n) => n.id)).toEqual([
+      "gate:krish-approval",
+      "person:krish",
+    ]);
+  });
   it("returns nothing for unrelated text", () => {
     expect(resolveEntities("what's for lunch", nodes)).toEqual([]);
   });
@@ -50,5 +63,6 @@ describe("MemoryGraphStore", () => {
   it("respects maxHops", async () => {
     const s = await seeded();
     expect(await s.shortestPath("bot:forge", "person:krish", 2)).toBeNull();
+    expect(await s.shortestPath("bot:forge", "repo:kronos", 0)).toBeNull();
   });
 });

@@ -16,7 +16,7 @@ Forge -[OWNS_CI]-> kronos <-[INCLUDES]- Ship every repo E2E <-[RUNS]- Helm <-[DI
 
 ## Run
 
-Requires Node 22.
+Requires Node 22.12 or newer (or Node 24+).
 
 ```bash
 npm install
