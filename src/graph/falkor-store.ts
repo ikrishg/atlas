@@ -14,7 +14,10 @@ export class FalkorGraphStore implements GraphStore {
     try {
       await graph.query("CREATE INDEX FOR (n:Entity) ON (n.id)");
     } catch (err) {
-      if (!/already (exists|indexed)/i.test(String(err))) throw err;
+      if (!/already (exists|indexed)/i.test(String(err))) {
+        await db.close();
+        throw err;
+      }
     }
     return new FalkorGraphStore(graph, db);
   }
